@@ -1,0 +1,56 @@
+require_relative '../node_modules/react-native/scripts/react_native_pods'
+require_relative '../node_modules/@react-native-community/cli-platform-ios/native_modules'
+
+platform :ios, '12.4'
+#$RNFirebaseAsStaticFramework = true
+
+target 'rpsg1' do
+  config = use_native_modules!
+  
+  use_react_native!(:path => config[:reactNativePath])
+  pod 'FirebaseCore', :modular_headers => true
+  pod 'Firebase', :modular_headers => true
+  pod 'FirebaseCoreInternal', :modular_headers => true
+  pod 'GoogleUtilities', :modular_headers => true
+  $RNFirebaseAsStaticFramework = true
+
+  # Enables Flipper.
+  #
+  # Note that if you have use_frameworks! enabled, Flipper will not work and
+  # you should disable these next few lines.
+#    use_flipper!
+#    post_install do |installer|
+#      flipper_post_install(installer)
+#    end
+  
+  pod 'RNFBApp', :path => '../node_modules/@react-native-firebase/app'
+  
+  deployment_target = Gem::Version.new('12.4')
+  platform :ios, deployment_target
+  # ...
+  post_install do |installer|
+    react_native_post_install(installer)
+    # Uncomment if using a M1 Mac with XCode 12.5
+    # __apply_Xcode_12_5_M1_post_install_workaround(installer)
+    # target -> https://www.rubydoc.info/gems/xcodeproj/Xcodeproj/Project/Object/PBXNativeTarget
+    installer.pods_project.targets.each do |target|
+      case target.name
+      # Ignore RCT-Folly because it only works with 9.0 as a deployment target
+      when 'RCT-Folly'
+        next
+      else
+        # Explicitly set pods deployment target for each build config to app deployment target
+        target.build_configurations.each do |config|
+          current_pod_target = config.build_settings['IPHONEOS_DEPLOYMENT_TARGET']
+          pod_ios_deployment_target = Gem::Version.new(current_pod_target)
+          if pod_ios_deployment_target <= deployment_target
+            config.build_settings.delete 'IPHONEOS_DEPLOYMENT_TARGET'
+          end
+        end
+      end
+    end
+  end
+  
+end
+
+
